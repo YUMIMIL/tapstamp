@@ -54,18 +54,30 @@ enum RelativeTimeFormatter {
     }
 
     /// 「14:32」固定（端末の 12/24 時間設定に依存しない）。
-    static func clock(_ date: Date) -> String {
-        clockFormatter.string(from: date)
+    static func clock(_ date: Date, timeZone: TimeZone = .current) -> String {
+        format(date, with: clockFormatter, timeZone: timeZone)
     }
 
     /// 「10月4日(土)」
-    static func monthDayWeekday(_ date: Date) -> String {
-        monthDayWeekdayFormatter.string(from: date)
+    static func monthDayWeekday(_ date: Date, timeZone: TimeZone = .current) -> String {
+        format(date, with: monthDayWeekdayFormatter, timeZone: timeZone)
     }
 
     /// 「2026年10月4日(土) 14:32」
-    static func full(_ date: Date) -> String {
-        fullFormatter.string(from: date)
+    static func full(_ date: Date, timeZone: TimeZone = .current) -> String {
+        format(date, with: fullFormatter, timeZone: timeZone)
+    }
+
+    private static func format(_ date: Date, with formatter: DateFormatter, timeZone: TimeZone) -> String {
+        if formatter.timeZone == timeZone {
+            return formatter.string(from: date)
+        }
+        // テストなどで端末と異なるタイムゾーンを指定された場合だけコピーして使う
+        guard let copy = formatter.copy() as? DateFormatter else {
+            return formatter.string(from: date)
+        }
+        copy.timeZone = timeZone
+        return copy.string(from: date)
     }
 
     private static let clockFormatter: DateFormatter = {

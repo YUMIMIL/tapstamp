@@ -33,8 +33,16 @@ struct RelativeTimeFormatterTests {
 
     @Test("時刻は 24 時間表記")
     func clock() {
-        #expect(RelativeTimeFormatter.clock(date(10, 4, 14, 32)) == "14:32")
-        #expect(RelativeTimeFormatter.clock(date(10, 4, 9, 5)) == "09:05")
+        let zone = calendar.timeZone
+        #expect(RelativeTimeFormatter.clock(date(10, 4, 14, 32), timeZone: zone) == "14:32")
+        #expect(RelativeTimeFormatter.clock(date(10, 4, 9, 5), timeZone: zone) == "09:05")
+    }
+
+    @Test("日付の表記")
+    func fullDate() {
+        let zone = calendar.timeZone
+        #expect(RelativeTimeFormatter.full(date(10, 4, 14, 32), timeZone: zone) == "2026年10月4日(日) 14:32")
+        #expect(RelativeTimeFormatter.monthDayWeekday(date(10, 4), timeZone: zone) == "10月4日(日)")
     }
 
     @Test("秒数の短い表現")

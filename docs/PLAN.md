@@ -151,10 +151,11 @@ typealias TapRecord = TapStampSchemaV1.TapRecord
   型安全に使うための computed property `displayMode: DisplayMode` を用意します。
 - **`createdAt` を Record にも持たせる**（ご指定にはない追加。確認事項 B）:
   時刻修正しても「いつ押したか」が残り、将来の CSV 書き出しやデバッグに役立ちます。不要なら外します。
-- **ラベル削除時の記録の扱い**（確認事項 C）: `deleteRule: .nullify` にし、
-  記録は消さず「とりあえず記録」側に残す案を推奨します。削除時の確認ダイアログで
-  「ラベルを削除（記録 N 件は『とりあえず記録』に残ります）」と明示します。
-  「記録ごと消したい」ならダイアログに第2ボタンを足すこともできます。
+- **ラベル削除時の記録の扱い**（確認事項 C → 決定: 選べるようにする）:
+  `deleteRule: .nullify` を基本にし、削除時の確認ダイアログで次の 2 つから選べるようにします。
+  - 「ラベルだけ削除」: 記録 N 件は「とりあえず記録」に残る（既定）
+  - 「記録 N 件も削除」: 赤字の破壊的ボタン。`LabelStore.delete(label:deletingRecords: true)` が先に記録を消してからラベルを消す
+  記録が 0 件のラベルは確認なしで削除します。
 - **並び順**: `sortOrder` は 0 始まり、並べ替えのたびに全件振り直し（件数が少ないので単純な方法で十分）。
 - **保存先**: `ModelContainerFactory` が URL を決めます。フェーズ1はアプリ既定の場所。
   フェーズ2で Widget と共有するために App Group コンテナへ移す際、
@@ -231,17 +232,34 @@ typealias TapRecord = TapStampSchemaV1.TapRecord
 
 ---
 
-## 6. 確認していただきたいこと
+## 6. 決定事項（2026-10-04 確認済み）
 
-- **A. 型名**: `TapLabel` / `TapRecord` でよいか（UI 文言は「ラベル」「記録」のまま）。
-- **B. `TapRecord.createdAt`** を追加してよいか（時刻修正しても元の操作時刻を残すため）。
-- **C. ラベル削除時**: 記録は消さず「とりあえず記録」に残す（推奨）でよいか。
-- **D. ふりかえりのラベル切替**: 横スクロールできる自作チップ列でよいか（標準セグメントだと 5 個以上で潰れるため）。
-- **E. テスト**: Step 0 で Testing System に「Swift Testing」を選んでいただき、集計ロジックに最低限のテストを付けてよいか
-  （Claude がコンパイルできない分、テストがあると手戻りが減ります。不要なら「None」でも進められます）。
-- **F. Apple Developer Program（有料）に加入しているか**: フェーズ1の実機ビルドは無料の Apple ID で可能です。
-  フェーズ2のウィジェット共有（App Groups）やコントロールセンター対応で必要になる可能性があるため、
-  先に伺っておきます（回答は後日でも構いません）。
+- **A. 型名**: `TapLabel` / `TapRecord`（UI 文言は「ラベル」「記録」）。
+- **B. `TapRecord.createdAt`**: 追加する。
+- **C. ラベル削除時**: 「ラベルだけ削除（記録は残す）」「記録も削除」をダイアログで選べるようにする。
+- **D. ふりかえりのラベル切替**: 横スクロールできる自作チップ列。
+- **E. テスト**: Swift Testing を使い、集計ロジックに単体テストを付ける。
+- **F. Apple Developer Program**: 加入済み。App Groups / TestFlight / App Store 配布が使える。
 
-上記に問題がなければ、`docs/XCODE_GUIDE.md` の Step 0 を実施して push してください。
-その後 Step 1 から書き始めます。
+---
+
+## 7. ビルド・リリース環境の選択肢（Xcode は必須か）
+
+結論: **ネイティブ iOS アプリをコンパイル・署名するには、どこかに macOS + Xcode が必要**です。
+ただし「あなたの手元の Mac で Xcode の画面を操作する」以外の方法もあります。
+
+| 方式 | Mac | Xcode の画面操作 | 開発中の確認 | リリース |
+|---|---|---|---|---|
+| ① Xcode（計画どおり） | 必要 | プロジェクト作成と ⌘R のみ | シミュレータ／USB 実機、即時 | Xcode の Archive → App Store Connect |
+| ② Mac + ターミナルのみ | 必要 | ほぼなし（Xcode はインストールだけ） | `xcodebuild` でシミュレータ／実機、即時 | `xcodebuild -exportArchive` または fastlane |
+| ③ Mac なし：GitHub Actions の macOS ランナー | 不要 | なし | push → CI ビルド（5〜10 分）→ TestFlight で iPhone にインストール | 同じ CI から App Store Connect へアップロード |
+| ④ Expo / Flutter などに乗り換え | 不要 | なし | クラウドビルド | クラウドビルド |
+
+- ①②③ はどれも Claude 側の作業（Swift を書いて push）は同じです。
+- ③ では Claude が CI ログを自分で読めるので、コンパイルエラーを貼ってもらう手間が減ります。
+  一方、動作確認のたびに CI 待ち＋TestFlight インストールが挟まり、1 回のサイクルが 10〜15 分になります。
+  証明書・プロビジョニングプロファイルの準備（Apple Developer サイトでの Web 操作）も最初に必要です。
+- ④ は本当に Xcode 不要ですが、SwiftUI / SwiftData / Swift Charts の指定と相反し、
+  フェーズ2のウィジェット・コントロールセンター・アクションボタンがほぼ実現できなくなるため推奨しません。
+- **Mac をお持ちなら ① を推奨**し、追加で ③ の CI ビルド（ビルド＋テストだけ）を Claude が用意すると、
+  手元の確認は即時、コンパイル確認は Claude が自分で行える、という組み合わせになります。

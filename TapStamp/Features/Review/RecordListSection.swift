@@ -38,6 +38,7 @@ struct RecordListSection: View {
         } footer: {
             Text("タップで日時を修正、左にスワイプで削除できます。")
         }
+        .listRowBackground(AppTheme.card)
     }
 
     private func intervalText(previous: Date, current: Date) -> String {

@@ -10,14 +10,15 @@ struct RootTabView: View {
         TabView {
             RecordView()
                 .tabItem {
-                    Label("記録", systemImage: "hand.tap")
+                    Label("記録", systemImage: "list.bullet")
                 }
 
             ReviewView()
                 .tabItem {
-                    Label("ふりかえり", systemImage: "chart.bar")
+                    Label("ふりかえり", systemImage: "chart.bar.fill")
                 }
         }
+        .tint(AppTheme.accent)
         .onAppear {
             if !hasCompletedOnboarding {
                 isOnboardingPresented = true

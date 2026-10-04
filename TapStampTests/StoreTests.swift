@@ -51,7 +51,7 @@ struct StoreTests {
         let labels = LabelStore(context: container.mainContext)
         let records = RecordStore(context: container.mainContext)
 
-        let label = try labels.add(name: "一時", color: .red, displayMode: .frequency)
+        let label = try labels.add(name: "一時", color: .coral, displayMode: .frequency)
         try records.record(label: label)
         try labels.delete(label, deletingRecords: false)
 
@@ -65,7 +65,7 @@ struct StoreTests {
         let labels = LabelStore(context: container.mainContext)
         let records = RecordStore(context: container.mainContext)
 
-        let label = try labels.add(name: "一時", color: .red, displayMode: .frequency)
+        let label = try labels.add(name: "一時", color: .coral, displayMode: .frequency)
         try records.record(label: label)
         try labels.delete(label, deletingRecords: true)
 
@@ -78,9 +78,9 @@ struct StoreTests {
         let container = try ModelContainerFactory.makeInMemoryContainer()
         let labels = LabelStore(context: container.mainContext)
 
-        try labels.add(name: "A", color: .red, displayMode: .frequency)
-        try labels.add(name: "B", color: .red, displayMode: .frequency)
-        try labels.add(name: "C", color: .red, displayMode: .frequency)
+        try labels.add(name: "A", color: .coral, displayMode: .frequency)
+        try labels.add(name: "B", color: .coral, displayMode: .frequency)
+        try labels.add(name: "C", color: .coral, displayMode: .frequency)
 
         try labels.move(fromOffsets: IndexSet(integer: 2), toOffset: 0)
 

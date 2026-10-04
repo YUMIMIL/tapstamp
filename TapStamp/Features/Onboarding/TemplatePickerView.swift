@@ -34,6 +34,7 @@ struct TemplatePickerView: View {
                         }
                         .padding(.vertical, 4)
                     }
+                    .listRowBackground(AppTheme.card)
                 }
 
                 Section {
@@ -46,7 +47,7 @@ struct TemplatePickerView: View {
                             HStack(spacing: 12) {
                                 Circle()
                                     .fill(Color(template.color))
-                                    .frame(width: 14, height: 14)
+                                    .frame(width: 18, height: 18)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(template.name)
                                         .foregroundStyle(.primary)
@@ -62,18 +63,23 @@ struct TemplatePickerView: View {
                                 } else {
                                     Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                         .font(.title3)
-                                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                                        .foregroundStyle(isSelected ? AppTheme.accent : Color.secondary.opacity(0.5))
                                 }
                             }
+                            .padding(.vertical, 2)
                         }
                         .disabled(alreadyExists)
                     }
                 } header: {
                     Text(isOnboarding ? "テンプレート" : "追加するものを選んでください")
                 }
+                .listRowBackground(AppTheme.card)
             }
+            .listStyle(.insetGrouped)
+            .themedScreenBackground()
             .navigationTitle(isOnboarding ? "はじめに" : "テンプレート")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(isOnboarding ? "あとで設定" : "キャンセル") {
@@ -94,6 +100,7 @@ struct TemplatePickerView: View {
                 Text(errorMessage ?? "")
             }
         }
+        .tint(AppTheme.accent)
         .interactiveDismissDisabled(isOnboarding)
     }
 

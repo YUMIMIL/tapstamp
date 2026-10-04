@@ -6,41 +6,43 @@ struct RecordView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \TapLabel.sortOrder) private var labels: [TapLabel]
 
-    @State private var selectedPage = 0
+    @State private var currentPageID: String? = RecordPage.unlabeledID
     @State private var toast: RecordToast?
     @State private var isLabelEditorPresented = false
+
+    private var pages: [RecordPage] {
+        [.unlabeled] + labels.map { .label($0) }
+    }
+
+    private var currentIndex: Int {
+        pages.firstIndex { $0.id == currentPageID } ?? 0
+    }
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
-                TabView(selection: $selectedPage) {
-                    UnlabeledRecordPage(onRecord: handleRecord)
-                        .tag(0)
+                AppTheme.background.ignoresSafeArea()
 
-                    ForEach(Array(labels.enumerated()), id: \.element.persistentModelID) { index, label in
-                        LabeledRecordPage(label: label, onRecord: handleRecord)
-                            .tag(index + 1)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                RecordCarousel(pages: pages, currentPageID: $currentPageID, onRecord: handleRecord)
 
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     if let toast {
                         UndoToast(toast: toast, onUndo: undoLastRecord)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-                    PageDots(count: labels.count + 1, current: selectedPage, color: currentColor)
+                    PageDots(count: pages.count, current: currentIndex, color: pages[currentIndex].color)
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, 10)
             }
-            .navigationTitle("記録")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isLabelEditorPresented = true
                     } label: {
                         Image(systemName: "tag")
+                            .foregroundStyle(.secondary)
                     }
                     .accessibilityLabel("ラベルを編集")
                 }
@@ -48,21 +50,16 @@ struct RecordView: View {
             .sheet(isPresented: $isLabelEditorPresented) {
                 LabelListView()
             }
-            .onChange(of: labels.count) { _, newCount in
-                if selectedPage > newCount {
-                    selectedPage = newCount
+            .onChange(of: labels.count) { _, _ in
+                // 現在のページが消えたら先頭に戻す
+                if !pages.contains(where: { $0.id == currentPageID }) {
+                    currentPageID = RecordPage.unlabeledID
                 }
             }
             .task(id: toast?.id) {
                 await dismissToastAfterDelay()
             }
         }
-    }
-
-    private var currentColor: Color {
-        let index = selectedPage - 1
-        guard labels.indices.contains(index) else { return .unlabeled }
-        return labels[index].color
     }
 
     // MARK: - Actions
@@ -106,6 +103,36 @@ struct RecordView: View {
     }
 }
 
+/// 記録画面の 1 ページ。
+enum RecordPage: Identifiable, Hashable {
+    case unlabeled
+    case label(TapLabel)
+
+    static let unlabeledID = "unlabeled"
+
+    var id: String {
+        switch self {
+        case .unlabeled:
+            return Self.unlabeledID
+        case .label(let label):
+            return label.id.uuidString
+        }
+    }
+
+    var label: TapLabel? {
+        if case .label(let label) = self { return label }
+        return nil
+    }
+
+    var title: String {
+        label?.name ?? "とりあえず記録"
+    }
+
+    var color: Color {
+        label?.color ?? .unlabeled
+    }
+}
+
 /// 記録直後に画面下へ出す通知の内容。
 struct RecordToast: Identifiable {
     let id = UUID()
@@ -113,55 +140,6 @@ struct RecordToast: Identifiable {
     let text: String
     let canUndo: Bool
     let duration: TimeInterval
-}
-
-// MARK: - Pages
-
-/// 1 ページ目「とりあえず記録」。
-private struct UnlabeledRecordPage: View {
-    let onRecord: (TapLabel?) -> Void
-
-    @Query(filter: #Predicate<TapRecord> { $0.label == nil }, sort: \TapRecord.timestamp, order: .reverse)
-    private var records: [TapRecord]
-
-    var body: some View {
-        RecordPageView(
-            title: "とりあえず記録",
-            color: .unlabeled,
-            timestamps: records.map(\.timestamp)
-        ) {
-            onRecord(nil)
-        }
-    }
-}
-
-/// ラベル付きのページ。
-private struct LabeledRecordPage: View {
-    let label: TapLabel
-    let onRecord: (TapLabel?) -> Void
-
-    @Query private var records: [TapRecord]
-
-    init(label: TapLabel, onRecord: @escaping (TapLabel?) -> Void) {
-        self.label = label
-        self.onRecord = onRecord
-        let labelID: UUID? = label.id
-        _records = Query(
-            filter: #Predicate<TapRecord> { $0.label?.id == labelID },
-            sort: \TapRecord.timestamp,
-            order: .reverse
-        )
-    }
-
-    var body: some View {
-        RecordPageView(
-            title: label.name,
-            color: label.color,
-            timestamps: records.map(\.timestamp)
-        ) {
-            onRecord(label)
-        }
-    }
 }
 
 #Preview {

@@ -17,7 +17,7 @@ struct LabelChipRow: View {
                     }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
     }
@@ -25,11 +25,14 @@ struct LabelChipRow: View {
     private func chip(title: String, color: Color, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.subheadline.weight(.medium))
+                .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(isSelected ? color : Color(uiColor: .secondarySystemFill), in: Capsule())
+                .background(isSelected ? color : AppTheme.card, in: Capsule())
+                .overlay(
+                    Capsule().stroke(isSelected ? Color.clear : AppTheme.border, lineWidth: 1)
+                )
                 .foregroundStyle(isSelected ? Color.white : Color.primary)
         }
         .buttonStyle(.plain)

@@ -13,28 +13,25 @@ struct DailyCountChart: View {
         Chart(counts) { item in
             BarMark(
                 x: .value("日", item.date, unit: .day),
-                y: .value("回数", item.count)
+                y: .value("回数", item.count),
+                width: .ratio(0.55)
             )
-            .foregroundStyle(item.date == today ? color : color.opacity(0.45))
-            .cornerRadius(4)
-            .annotation(position: .top, spacing: 2) {
-                if item.count > 0 {
-                    Text("\(item.count)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            .foregroundStyle(item.date == today ? color : color.opacity(0.6))
+            .cornerRadius(5)
         }
         .chartYScale(domain: 0...upperBound)
         .chartXAxis {
             AxisMarks(values: .stride(by: .day)) { _ in
-                AxisValueLabel(format: .dateTime.day(), centered: true)
+                AxisValueLabel(format: .dateTime.weekday(.narrow), centered: true)
+                    .foregroundStyle(.secondary)
             }
         }
         .chartYAxis {
-            AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine()
+                    .foregroundStyle(AppTheme.border)
                 AxisValueLabel()
+                    .foregroundStyle(.secondary)
             }
         }
         .accessibilityLabel("直近7日の日別回数")
@@ -49,8 +46,8 @@ struct DailyCountChart: View {
                 count: [2, 0, 1, 4, 3, 0, 2][offset]
             )
         },
-        color: Color(LabelColor.blue)
+        color: Color(LabelColor.green)
     )
-    .frame(height: 170)
+    .frame(height: 150)
     .padding()
 }

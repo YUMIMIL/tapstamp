@@ -1,34 +1,34 @@
 import Foundation
 
-/// ラベルに選べるプリセット色。rawValue は保存用の hex 文字列。
+/// ラベルに選べるプリセット色（くすみ系）。rawValue は保存用の hex 文字列。
 enum LabelColor: String, CaseIterable, Identifiable, Sendable {
-    case red = "#E5484D"
-    case orange = "#F76B15"
-    case amber = "#D08700"
-    case green = "#30A46C"
-    case teal = "#12A594"
-    case blue = "#3E63DD"
-    case purple = "#8E4EC6"
-    case pink = "#D6409F"
+    case blue = "#6F94C2"
+    case green = "#8DAA8E"
+    case coral = "#D4857C"
+    case lavender = "#A594C9"
+    case sand = "#D9A76A"
+    case teal = "#7FB8B2"
+    case rose = "#C98BA3"
+    case slate = "#8A94A6"
 
     var id: String { rawValue }
     var hex: String { rawValue }
 
     var name: String {
         switch self {
-        case .red: return "レッド"
-        case .orange: return "オレンジ"
-        case .amber: return "アンバー"
-        case .green: return "グリーン"
-        case .teal: return "ティール"
         case .blue: return "ブルー"
-        case .purple: return "パープル"
-        case .pink: return "ピンク"
+        case .green: return "グリーン"
+        case .coral: return "コーラル"
+        case .lavender: return "ラベンダー"
+        case .sand: return "サンド"
+        case .teal: return "ティール"
+        case .rose: return "ローズ"
+        case .slate: return "スレート"
         }
     }
 
-    /// 「とりあえず記録」（ラベルなし）に使うグレー。
-    static let unlabeledHex = "#6B7280"
+    /// 「とりあえず記録」（ラベルなし）に使うスチールブルー。
+    static let unlabeledHex = "#5B7FA6"
 
     init?(hex: String) {
         self.init(rawValue: hex.uppercased())

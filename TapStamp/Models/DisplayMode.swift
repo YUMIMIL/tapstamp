@@ -11,15 +11,15 @@ enum DisplayMode: String, CaseIterable, Codable, Sendable, Identifiable {
 
     var title: String {
         switch self {
-        case .frequency: return "回数を見る"
-        case .interval: return "間隔を見る"
+        case .frequency: return "回数・頻度"
+        case .interval: return "間隔"
         }
     }
 
     var caption: String {
         switch self {
-        case .frequency: return "今日の回数、日別の回数、時間帯の傾向を表示します。"
-        case .interval: return "前回から何日経ったか、平均の間隔を表示します。"
+        case .frequency: return "1日に何回あったかを見る"
+        case .interval: return "前回からどれくらい経ったかを見る"
         }
     }
 }

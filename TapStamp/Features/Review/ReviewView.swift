@@ -5,6 +5,7 @@ import SwiftData
 struct ReviewView: View {
     @Query(sort: \TapLabel.sortOrder) private var labels: [TapLabel]
     @State private var selectedLabelID: UUID?
+    @State private var isLabelEditorPresented = false
 
     private var selectedLabel: TapLabel? {
         labels.first { $0.id == selectedLabelID }
@@ -22,10 +23,26 @@ struct ReviewView: View {
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 LabelChipRow(labels: labels, selection: $selectedLabelID)
-                    .background(.bar)
+                    .background(AppTheme.background)
             }
+            .background(AppTheme.background.ignoresSafeArea())
             .navigationTitle("ふりかえり")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.background, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isLabelEditorPresented = true
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityLabel("ラベルを編集")
+                }
+            }
+            .sheet(isPresented: $isLabelEditorPresented) {
+                LabelListView()
+            }
         }
     }
 }

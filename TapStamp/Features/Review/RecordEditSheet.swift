@@ -34,6 +34,7 @@ struct RecordEditSheet: View {
                     Text("修正しても、ボタンを押した日時はそのまま残ります。")
                 }
             }
+            .themedScreenBackground()
             .navigationTitle("記録を修正")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

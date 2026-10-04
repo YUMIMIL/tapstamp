@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// ラベルの追加・編集フォーム。
+/// ラベルの追加・編集。名前・カラー・見たいもの を選び、下の「保存」で確定する。
 struct LabelEditView: View {
     let mode: LabelEditorMode
 
@@ -37,67 +37,92 @@ struct LabelEditView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("名前") {
-                    TextField("例: 薬、トイレ、シーツ交換", text: $name)
-                        .focused($isNameFocused)
-                        .submitLabel(.done)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                fieldBlock("名前") {
+                    HStack(spacing: 8) {
+                        TextField("例: 薬、トイレ、シーツ交換", text: $name)
+                            .font(.title3)
+                            .focused($isNameFocused)
+                            .submitLabel(.done)
+                        if !name.isEmpty {
+                            Button {
+                                name = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("名前を消去")
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    .background(
+                        AppTheme.card,
+                        in: RoundedRectangle(cornerRadius: AppTheme.fieldCornerRadius, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: AppTheme.fieldCornerRadius, style: .continuous)
+                            .stroke(isNameFocused ? AppTheme.accent : AppTheme.border, lineWidth: 1.5)
+                    )
                 }
 
-                Section("色") {
+                fieldBlock("カラー") {
                     LabelColorPicker(selection: $color)
                 }
 
-                Section {
-                    Picker("ふりかえりの表示", selection: $displayMode) {
-                        ForEach(DisplayMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
+                fieldBlock("見たいもの") {
+                    VStack(spacing: 12) {
+                        ForEach(DisplayMode.allCases) { option in
+                            DisplayModeOptionCard(mode: option, isSelected: displayMode == option) {
+                                displayMode = option
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
-                    Text(displayMode.caption)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Text("ふりかえりの表示")
                 }
+            }
+            .padding(20)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(AppTheme.background.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                save()
+            } label: {
+                Text("保存")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .tint(AppTheme.accent)
+            .disabled(trimmedName.isEmpty)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(AppTheme.background)
+        }
+        .navigationTitle(isNew ? "ラベルを追加" : "ラベル編集")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(AppTheme.background, for: .navigationBar)
+        .alert("保存できませんでした", isPresented: Binding(isPresent: $errorMessage)) {
+            Button("OK") {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+        .onAppear {
+            if isNew { isNameFocused = true }
+        }
+    }
 
-                Section("プレビュー") {
-                    HStack {
-                        Spacer()
-                        ZStack {
-                            Circle()
-                                .fill(Color(color).gradient)
-                                .frame(width: 88, height: 88)
-                            Text("記録")
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-            .navigationTitle(isNew ? "ラベルを追加" : "ラベルを編集")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("キャンセル") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
-                        .disabled(trimmedName.isEmpty)
-                }
-            }
-            .alert("保存できませんでした", isPresented: Binding(isPresent: $errorMessage)) {
-                Button("OK") {}
-            } message: {
-                Text(errorMessage ?? "")
-            }
-            .onAppear {
-                if isNew { isNameFocused = true }
-            }
+    @ViewBuilder
+    private func fieldBlock<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+            content()
         }
     }
 
@@ -117,7 +142,54 @@ struct LabelEditView: View {
     }
 }
 
+/// 「回数・頻度」「間隔」を選ぶカード型のラジオボタン。
+private struct DisplayModeOptionCard: View {
+    let mode: DisplayMode
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? AppTheme.accent : AppTheme.border, lineWidth: 2)
+                        .frame(width: 24, height: 24)
+                    if isSelected {
+                        Circle()
+                            .fill(AppTheme.accent)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(mode.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(mode.caption)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+            .background(
+                AppTheme.card,
+                in: RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous)
+                    .stroke(isSelected ? AppTheme.accent : AppTheme.border, lineWidth: isSelected ? 1.5 : 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: AppTheme.cornerRadius, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
 #Preview {
-    LabelEditView(mode: .add)
-        .modelContainer(try! ModelContainerFactory.makeInMemoryContainer())
+    NavigationStack {
+        LabelEditView(mode: .add)
+    }
+    .modelContainer(try! ModelContainerFactory.makeInMemoryContainer())
 }

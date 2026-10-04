@@ -7,7 +7,6 @@ struct LabelListView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \TapLabel.sortOrder) private var labels: [TapLabel]
 
-    @State private var editor: LabelEditorMode?
     @State private var pendingDelete: TapLabel?
     @State private var isTemplatePickerPresented = false
     @State private var errorMessage: String?
@@ -17,9 +16,7 @@ struct LabelListView: View {
             List {
                 Section {
                     ForEach(labels) { label in
-                        Button {
-                            editor = .edit(label)
-                        } label: {
+                        NavigationLink(value: LabelEditorMode.edit(label)) {
                             LabelRow(label: label)
                         }
                     }
@@ -32,22 +29,27 @@ struct LabelListView: View {
                         Text("右上の「編集」で並べ替えができます。左にスワイプで削除。")
                     }
                 }
+                .listRowBackground(AppTheme.card)
 
                 Section {
-                    Button {
-                        editor = .add
-                    } label: {
+                    NavigationLink(value: LabelEditorMode.add) {
                         Label("ラベルを追加", systemImage: "plus")
                     }
                     Button {
                         isTemplatePickerPresented = true
                     } label: {
-                        Label("テンプレートから追加", systemImage: "list.bullet")
+                        Label("テンプレートから追加", systemImage: "square.grid.2x2")
                     }
                 }
+                .listRowBackground(AppTheme.card)
             }
+            .listStyle(.insetGrouped)
+            .themedScreenBackground()
             .navigationTitle("ラベル")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: LabelEditorMode.self) { mode in
+                LabelEditView(mode: mode)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("閉じる") { dismiss() }
@@ -55,9 +57,6 @@ struct LabelListView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     EditButton()
                 }
-            }
-            .sheet(item: $editor) { mode in
-                LabelEditView(mode: mode)
             }
             .sheet(isPresented: $isTemplatePickerPresented) {
                 TemplatePickerView(isOnboarding: false)
@@ -84,6 +83,7 @@ struct LabelListView: View {
                 Text(errorMessage ?? "")
             }
         }
+        .tint(AppTheme.accent)
     }
 
     // MARK: - Actions
@@ -123,7 +123,7 @@ private struct LabelRow: View {
         HStack(spacing: 12) {
             Circle()
                 .fill(label.color)
-                .frame(width: 16, height: 16)
+                .frame(width: 18, height: 18)
             VStack(alignment: .leading, spacing: 2) {
                 Text(label.name)
                     .foregroundStyle(.primary)
@@ -131,16 +131,13 @@ private struct LabelRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tertiary)
         }
+        .padding(.vertical, 2)
     }
 }
 
-/// ラベル編集シートのモード。
-enum LabelEditorMode: Identifiable {
+/// ラベル編集画面のモード。
+enum LabelEditorMode: Hashable, Identifiable {
     case add
     case edit(TapLabel)
 

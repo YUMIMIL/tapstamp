@@ -69,11 +69,9 @@ tapstamp/
 │   │   ├── Root/
 │   │   │   └── RootTabView.swift         タブ（記録／ふりかえり）＋初回テンプレート表示の制御
 │   │   ├── Record/
-│   │   │   ├── RecordView.swift          TabView(.page) でラベルをページ切替
-│   │   │   ├── RecordPageView.swift      1ページ分（ラベル名・今日◯回・前回◯分前・丸ボタン）
-│   │   │   ├── TapButton.swift           直径240ptの丸ボタン、縮むアニメ、触覚
-│   │   │   ├── PageDots.swift            ページドット（ラベル色に追従）
-│   │   │   └── UndoToast.swift           「◯◯を記録しました 14:32｜取り消す」4秒表示
+│   │   │   ├── RecordView.swift          ページ状態・記録・取り消しトーストの制御
+│   │   │   ├── RecordCarousel.swift      隣のラベルの丸が左右に見えるカルーセル、丸ボタン、ページドット
+│   │   │   └── UndoToast.swift           「✓ 記録しました 14:32｜取り消す」4秒表示
 │   │   ├── Review/
 │   │   │   ├── ReviewView.swift          ラベル切替＋モードで分岐
 │   │   │   ├── FrequencyReviewView.swift 経過時間・今日の回数・棒グラフ・ヒートマップ・一覧
@@ -90,7 +88,9 @@ tapstamp/
 │   │       └── TemplatePickerView.swift  初回のテンプレート選択（スキップ可）
 │   │
 │   └── Shared/
+│       ├── Theme.swift               配色（生成り背景・白カード・スチールブルー）とカード用修飾子
 │       ├── Color+Hex.swift
+│       ├── Binding+IsPresent.swift
 │       └── RelativeTimeFormatter.swift 「3分前」「2時間前」「昨日」「5日前」、時刻表記
 │
 └── TapStampTests/                    ← Swift Testing
@@ -170,6 +170,14 @@ typealias TapRecord = TapStampSchemaV1.TapRecord
 ---
 
 ## 4. 画面仕様の具体化
+
+### 4.0 デザイン方針（2026-10-04 のモックに合わせて決定）
+
+- 生成りの背景（`#F7F5F0`）に白いカード（角丸 16pt、ごく薄い影）。ダークモードは暖色系の濃いグレーに切り替わる。
+- 操作色はスチールブルー `#5B7FA6`。ラベル色は 8 色のくすみ系プリセット（ブルー・グリーン・コーラル・ラベンダー・サンド・ティール・ローズ・スレート）。
+- 記録画面は隣のラベルの丸が左右に少し見えるカルーセル。丸の中は指のアイコンと「タップして記録」。
+- ふりかえりは「前回から」「今日」の 2 枚の数値カード＋「直近7日」「曜日 × 時間帯」のカード。曜日は月曜始まり。
+- ラベル編集は「名前」「カラー」「見たいもの」の 3 ブロックと、画面下の大きな「保存」ボタン。
 
 ### 4.1 記録画面（RecordView）
 

@@ -6,8 +6,9 @@
 - 対象: iOS 17.0以上
 - 技術: SwiftUI / SwiftData / Swift Charts、外部ライブラリなし
 - UI言語: 日本語
-- 開発の分担: Claudeが Swift ファイルを書いて push → あなたが pull して Xcode でビルド・実機確認。
-  Claude の環境には Xcode も Swift コンパイラもないため、コンパイルエラーはあなたから貼ってもらって直します。
+- 開発の分担（Mac なし構成）: Claude が Swift ファイルを書いて push → GitHub Actions の macOS ランナーが
+  ビルド＋テスト → Claude が CI ログを読んで修正。動作確認はあなたが TestFlight で iPhone にインストールして行う。
+  Xcode プロジェクトは `project.yml`（XcodeGen）から CI 上で生成する。
 
 ---
 
@@ -15,7 +16,7 @@
 
 | Step | 内容 | 誰が | 完了の目安 |
 |---|---|---|---|
-| 0 | Xcodeプロジェクト作成・pushする（手順: `docs/XCODE_GUIDE.md`） | あなた | `TapStamp.xcodeproj` がリポジトリに入り、シミュレータで空アプリが起動する |
+| 0 | プロジェクト定義（`project.yml`）と CI の用意。Apple 側の登録と GitHub Secrets（手順: `docs/TESTFLIGHT_GUIDE.md`） | Claude／あなた | CI が緑になり、TestFlight でインストールできる |
 | 1 | データモデル・ModelContainer・集計ロジック（純粋関数）・単体テスト | Claude | ビルドが通り、テストが緑 |
 | 2 | 記録画面（丸ボタン、ラベルのページ切替、取り消しトースト） | Claude | タップ→保存→取り消し が動く |
 | 3 | ふりかえり画面（頻度／間隔の2モード、棒グラフ、ヒートマップ、一覧の削除・時刻修正） | Claude | 実データで表示が崩れない |
@@ -28,18 +29,22 @@ Step 1 以降は 1 Step ごとに push し、あなたのビルド結果を待�
 
 ## 2. ファイル構成
 
-Xcode 16 以降のプロジェクトは「同期フォルダ（synchronized folder）」方式なので、
-`TapStamp/` 配下にファイルを置けば Xcode 側で自動的に認識されます（手動で「Add Files」する必要なし）。
+`TapStamp.xcodeproj` はリポジトリに含めず、`project.yml` から CI 上で生成します。
+`TapStamp/` 配下に置いたファイルはすべて自動でターゲットに入ります。
 
 ```
 tapstamp/
 ├── .gitignore
 ├── README.md
+├── project.yml               ← XcodeGen の設定（ターゲット・Info.plist・スキーム）
+├── .github/workflows/
+│   ├── ci.yml                ← push ごとにシミュレータでビルド＋テスト
+│   └── testflight.yml        ← 手動実行で TestFlight にアップロード
 ├── docs/
 │   ├── PLAN.md               ← この文書
-│   └── XCODE_GUIDE.md        ← Xcode の画面操作手順（随時追記）
-├── TapStamp.xcodeproj/       ← Step 0 であなたが作成
-├── TapStamp/                 ← アプリ本体（同期フォルダ）
+│   ├── TESTFLIGHT_GUIDE.md   ← Apple / GitHub 側の Web 操作手順
+│   └── XCODE_GUIDE.md        ← 将来 Mac を使う場合の参考（現在は未使用）
+├── TapStamp/                 ← アプリ本体
 │   ├── TapStampApp.swift             @main。ModelContainer を生成して注入
 │   ├── Assets.xcassets/              Xcode が生成（アイコン・AccentColor）
 │   │
@@ -85,13 +90,13 @@ tapstamp/
 │   │
 │   └── Shared/
 │       ├── Color+Hex.swift
-│       ├── Date+Helpers.swift        startOfDay、同日判定 など
-│       ├── RelativeTimeFormatter.swift 「3分前」「2時間前」「昨日」「5日前」
-│       └── Haptics.swift             .sensoryFeedback のラッパ
+│       └── RelativeTimeFormatter.swift 「3分前」「2時間前」「昨日」「5日前」、時刻表記
 │
-└── TapStampTests/                    ← Step 0 で Testing System = Swift Testing を選ぶと生成
+└── TapStampTests/                    ← Swift Testing
+    ├── TestSupport.swift
     ├── StatisticsTests.swift
-    └── RelativeTimeFormatterTests.swift
+    ├── RelativeTimeFormatterTests.swift
+    └── StoreTests.swift              ← インメモリの SwiftData で RecordStore / LabelStore を検証
 ```
 
 `Models/` と `Services/` は **`import SwiftUI` を書かない** ルールにします。

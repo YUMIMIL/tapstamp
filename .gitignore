@@ -1,4 +1,5 @@
-# Xcode
+# Xcode (project is generated from project.yml by XcodeGen)
+*.xcodeproj
 xcuserdata/
 *.xcuserstate
 *.xcscmblueprint

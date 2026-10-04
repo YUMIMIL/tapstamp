@@ -1,4 +1,9 @@
-# Xcode 操作ガイド（手作業が必要な部分）
+# Xcode 操作ガイド（参考：Mac を使う場合）
+
+> **現在の開発は Mac なし構成（GitHub Actions + TestFlight）で進めています。手順は `docs/TESTFLIGHT_GUIDE.md` を見てください。**
+> この文書は、将来 Mac を使うことになった場合の参考として残しています。
+> その場合、プロジェクト作成（Step 0-3 / 0-4）は不要で、代わりにターミナルで
+> `brew install xcodegen && xcodegen generate` を実行すると `TapStamp.xcodeproj` が生成されます。
 
 Claude の環境には Xcode がないため、以下の操作はお手元の Mac で行ってください。
 手順は Xcode 16 以降（Xcode 26 を含む）を前提にしています。メニュー名が少し違う場合は近いものを選んでください。

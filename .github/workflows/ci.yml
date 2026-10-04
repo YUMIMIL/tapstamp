@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & test (iOS Simulator)
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)["devices"]
+          runtimes = sorted(k for k in data if ".iOS-" in k)
+          for runtime in reversed(runtimes):
+              phones = [d for d in data[runtime] if d["name"].startswith("iPhone") and d.get("isAvailable", True)]
+              if phones:
+                  print(phones[-1]["udid"]); break
+          ')
+          echo "Using simulator $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild test \
+            -project TapStamp.xcodeproj \
+            -scheme TapStamp \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath build/TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/xcodebuild.log | grep -E "error:|warning:|Test Suite|Test Case|passed|failed|\*\*" || true
+          # xcodebuild の終了コードは pipefail で保持されるが、grep の || true で潰れるため再確認する
+          if grep -qE "\*\* (BUILD|TEST) FAILED \*\*|error:" build/xcodebuild.log; then
+            echo "::error::Build or tests failed. See the 'Errors' step below."
+            exit 1
+          fi
+
+      - name: Errors
+        if: failure()
+        run: |
+          echo "=== errors ==="
+          grep -nE "error:" build/xcodebuild.log | sort -u | head -100 || true
+          echo "=== failed tests ==="
+          grep -nE "failed|Test Case .* failed|✘|Expectation failed" build/xcodebuild.log | head -100 || true
+
+      - name: Upload full log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build/xcodebuild.log
+          if-no-files-found: ignore

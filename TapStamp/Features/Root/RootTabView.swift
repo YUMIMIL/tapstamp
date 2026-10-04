@@ -1,19 +1,33 @@
 import SwiftUI
 import SwiftData
 
-/// アプリ全体のタブ。Step 2 以降で各画面を差し込む。
+/// アプリ全体のタブ。初回起動時はテンプレート選択を全画面で出す。
 struct RootTabView: View {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var isOnboardingPresented = false
+
     var body: some View {
         TabView {
-            Text("記録")
+            RecordView()
                 .tabItem {
                     Label("記録", systemImage: "hand.tap")
                 }
 
-            Text("ふりかえり")
+            ReviewView()
                 .tabItem {
                     Label("ふりかえり", systemImage: "chart.bar")
                 }
+        }
+        .onAppear {
+            if !hasCompletedOnboarding {
+                isOnboardingPresented = true
+            }
+        }
+        .fullScreenCover(isPresented: $isOnboardingPresented) {
+            TemplatePickerView(isOnboarding: true) {
+                hasCompletedOnboarding = true
+                isOnboardingPresented = false
+            }
         }
     }
 }

@@ -65,14 +65,15 @@ struct StatisticsTests {
             date(10, 2, 0, 0),  // 順不同で渡しても並べ替える
             date(10, 7, 0, 0),  // +4 日
         ]
+        let day: TimeInterval = 86_400
         let intervals = Statistics.intervals(timestamps)
-        #expect(intervals == [86_400, 86_400, 4 * 86_400])
+        #expect(intervals == [day, day, 4 * day])
 
         let summary = Statistics.intervalSummary(timestamps, recentLimit: 2)
         #expect(summary.sampleCount == 2)
-        #expect(summary.shortest == 86_400)
-        #expect(summary.longest == 4 * 86_400)
-        #expect(summary.average == 2.5 * 86_400)
+        #expect(summary.shortest == day)
+        #expect(summary.longest == 4 * day)
+        #expect(summary.average == 2.5 * day)
 
         #expect(Statistics.intervalSummary([date(10, 1)]) == .empty)
     }

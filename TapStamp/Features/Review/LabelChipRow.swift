@@ -29,7 +29,7 @@ struct LabelChipRow: View {
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(isSelected ? color : Color(.secondarySystemFill), in: Capsule())
+                .background(isSelected ? color : Color(uiColor: .secondarySystemFill), in: Capsule())
                 .foregroundStyle(isSelected ? Color.white : Color.primary)
         }
         .buttonStyle(.plain)

@@ -32,9 +32,16 @@ struct LabelColorPicker: View {
     }
 }
 
-#Preview {
-    @Previewable @State var color: LabelColor = .blue
-    Form {
-        LabelColorPicker(selection: $color)
+private struct LabelColorPickerPreview: View {
+    @State private var color: LabelColor = .blue
+
+    var body: some View {
+        Form {
+            LabelColorPicker(selection: $color)
+        }
     }
+}
+
+#Preview {
+    LabelColorPickerPreview()
 }

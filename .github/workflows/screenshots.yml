@@ -79,23 +79,29 @@ jobs:
           H=$((10#$(date -u +%H)))
           OFF=$((14 - H))
           if [ "$OFF" -ge 0 ]; then TZNAME="Etc/GMT-$OFF"; else TZNAME="Etc/GMT+$((-OFF))"; fi
-          LOCAL_TIME=$(TZ="$TZNAME" date +%H:%M)
-          echo "Time zone $TZNAME, local time $LOCAL_TIME"
+          echo "Time zone $TZNAME, local time $(TZ="$TZNAME" date +%H:%M)"
 
+          # 端末全体を日本語・24 時間表記にしてから起動し直す（ステータスバーの時計に反映させるため）
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl spawn "$UDID" defaults write -g AppleLanguages -array ja
+          xcrun simctl spawn "$UDID" defaults write -g AppleLocale -string ja_JP
+          xcrun simctl spawn "$UDID" defaults write -g AppleICUForce24HourTime -bool true
+          xcrun simctl shutdown "$UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
           xcrun simctl ui "$UDID" appearance light
-          xcrun simctl status_bar "$UDID" override \
-            --time "$LOCAL_TIME" \
-            --dataNetwork wifi --wifiMode active --wifiBars 3 \
-            --cellularMode active --cellularBars 4 \
-            --batteryState charged --batteryLevel 100
           xcrun simctl install "$UDID" build/dd/Build/Products/Debug-iphonesimulator/TapStamp.app
 
           mkdir -p shots
           i=1
           for scene in record review interval labelEdit onboarding; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl status_bar "$UDID" override \
+              --time "$(TZ="$TZNAME" date +%H:%M)" \
+              --dataNetwork wifi --wifiMode active --wifiBars 3 \
+              --cellularMode active --cellularBars 4 \
+              --batteryState charged --batteryLevel 100
             SIMCTL_CHILD_TZ="$TZNAME" xcrun simctl launch "$UDID" "$BUNDLE_ID" \
               -demoScene "$scene" -AppleLanguages "(ja)" -AppleLocale ja_JP
             sleep 7

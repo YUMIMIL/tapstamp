@@ -44,7 +44,6 @@ struct FrequencySections: View {
             VStack(alignment: .leading, spacing: 12) {
                 CardTitle(title: "曜日 × 時間帯", detail: "直近4週間")
                 WeekdayHourHeatmap(cells: Statistics.weekdayHourCounts(timestamps, weeks: 4), color: color)
-                    .frame(height: 190)
             }
             .padding(.vertical, 6)
         }

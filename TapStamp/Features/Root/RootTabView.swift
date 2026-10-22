@@ -41,12 +41,13 @@ struct RootTabView: View {
                 .tag(AppTab.review)
         }
         .tint(AppTheme.accent)
-        .onAppear {
-            if let scene = DemoMode.scene {
-                isOnboardingPresented = scene == .onboarding
-            } else if !hasCompletedOnboarding {
-                isOnboardingPresented = true
-            }
+        .task {
+            let shouldPresent = DemoMode.scene.map { $0 == .onboarding } ?? !hasCompletedOnboarding
+            guard shouldPresent else { return }
+            // 起動直後に全画面表示を出すと中身が描画されないことがあるため、
+            // 最初の画面が表示されてから少し待って出す。
+            try? await Task.sleep(for: .milliseconds(500))
+            isOnboardingPresented = true
         }
         .fullScreenCover(isPresented: $isOnboardingPresented) {
             TemplatePickerView(isOnboarding: true) {

@@ -1,50 +1,60 @@
 import SwiftUI
-import Charts
 
 /// 曜日（7 行、月曜始まり）× 時間帯（24 列）のヒートマップ。
+/// 行とラベルを確実に揃えるため、Swift Charts を使わずマス目を直接描く。
 struct WeekdayHourHeatmap: View {
     let cells: [HeatmapCell]
     let color: Color
 
-    /// 表示順（月〜日）
-    private static let weekdayOrder = ["月", "火", "水", "木", "金", "土", "日"]
-    /// `Calendar.weekday`（1 = 日曜）→ 表示名
-    private static let weekdayNames = ["日", "月", "火", "水", "木", "金", "土"]
-    private static let hourTicks: [Double] = [0, 6, 12, 18, 24]
+    /// 表示順（月〜日）と `Calendar.weekday`（1 = 日曜）の対応
+    private static let rows: [(name: String, weekday: Int)] = [
+        ("月", 2), ("火", 3), ("水", 4), ("木", 5), ("金", 6), ("土", 7), ("日", 1),
+    ]
+    private static let labelWidth: CGFloat = 22
+    private static let spacing: CGFloat = 2
+    private static let cellHeight: CGFloat = 18
 
     var body: some View {
+        let counts = Dictionary(uniqueKeysWithValues: cells.map { ($0.id, $0.count) })
         let maxCount = cells.map(\.count).max() ?? 0
 
-        Chart(cells) { cell in
-            RectangleMark(
-                xStart: .value("時", Double(cell.hour) + 0.08),
-                xEnd: .value("時", Double(cell.hour) + 0.92),
-                y: .value("曜日", Self.weekdayNames[cell.weekday - 1]),
-                height: .ratio(0.8)
-            )
-            .foregroundStyle(fill(for: cell.count, maxCount: maxCount))
-            .cornerRadius(2)
-        }
-        .chartXScale(domain: 0.0...24.0)
-        .chartYScale(domain: Self.weekdayOrder)
-        .chartXAxis {
-            AxisMarks(position: .top, values: Self.hourTicks) { value in
-                AxisValueLabel(anchor: .bottomLeading) {
-                    if let hour = value.as(Double.self), hour < 24 {
-                        Text("\(Int(hour))時")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Self.spacing) {
+            // 時刻の見出し（0・6・12・18 時）
+            HStack(spacing: Self.spacing) {
+                Color.clear.frame(width: Self.labelWidth, height: 1)
+                ForEach(0..<24, id: \.self) { hour in
+                    ZStack(alignment: .leading) {
+                        Color.clear
+                        if hour % 6 == 0 {
+                            Text("\(hour)時")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 16)
+                }
+            }
+            .padding(.bottom, 2)
+
+            ForEach(Self.rows, id: \.weekday) { row in
+                HStack(spacing: Self.spacing) {
+                    Text(row.name)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: Self.labelWidth, alignment: .leading)
+                    ForEach(0..<24, id: \.self) { hour in
+                        let count = counts[row.weekday * 100 + hour] ?? 0
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(fill(for: count, maxCount: maxCount))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: Self.cellHeight)
                     }
                 }
             }
         }
-        .chartYAxis {
-            AxisMarks(position: .leading) { _ in
-                AxisValueLabel()
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("曜日と時間帯ごとの回数")
     }
 
@@ -64,8 +74,7 @@ struct WeekdayHourHeatmap: View {
                 HeatmapCell(weekday: weekday, hour: hour, count: (weekday * hour) % 5 == 0 ? (hour % 4) : 0)
             }
         },
-        color: Color(LabelColor.green)
+        color: Color(LabelColor.teal)
     )
-    .frame(height: 190)
     .padding()
 }

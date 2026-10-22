@@ -1,0 +1,124 @@
+# App Store 用スクリーンショットの撮影（手動実行）。
+# 6.9 インチ（Pro Max）のシミュレータでデモデータ入りの画面を撮り、
+# 結果を `screenshots` ブランチと Actions の成果物に保存する。
+name: Screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    name: Capture App Store screenshots
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      BUNDLE_ID: com.loreclinic.tapstamp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then
+            echo "::error::Xcode 26 is not installed on this runner"; ls -d /Applications/Xcode*.app; exit 1
+          fi
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+
+      - name: Install XcodeGen
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick a Pro Max simulator
+        id: sim
+        run: |
+          xcrun simctl list devices available -j > devices.json
+          read -r UDID NAME <<< "$(python3 - <<'EOF'
+          import json
+          data = json.load(open("devices.json"))["devices"]
+          runtimes = sorted((k for k in data if ".iOS-" in k), key=lambda k: [int(x) for x in k.split("iOS-")[1].split("-")])
+          for runtime in reversed(runtimes):
+              phones = [d for d in data[runtime] if "Pro Max" in d["name"]]
+              if phones:
+                  d = sorted(phones, key=lambda d: d["name"])[-1]
+                  print(d["udid"], d["name"].replace(" ", "_"))
+                  break
+          EOF
+          )"
+          if [ -z "$UDID" ]; then echo "::error::No Pro Max simulator found"; exit 1; fi
+          echo "Using $NAME ($UDID)"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project TapStamp.xcodeproj \
+            -scheme TapStamp \
+            -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build.log | grep -E "error:|\*\* BUILD" || true
+          grep -q "\*\* BUILD SUCCEEDED \*\*" build.log
+
+      - name: Capture
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          set -e
+          # アプリ内の時刻が午後 2 時ごろになるタイムゾーンを選ぶ（記録の多い時間帯を見せるため）
+          H=$((10#$(date -u +%H)))
+          OFF=$((14 - H))
+          if [ "$OFF" -ge 0 ]; then TZNAME="Etc/GMT-$OFF"; else TZNAME="Etc/GMT+$((-OFF))"; fi
+          LOCAL_TIME=$(TZ="$TZNAME" date +%H:%M)
+          echo "Time zone $TZNAME, local time $LOCAL_TIME"
+
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance light
+          xcrun simctl status_bar "$UDID" override \
+            --time "$LOCAL_TIME" \
+            --dataNetwork wifi --wifiMode active --wifiBars 3 \
+            --cellularMode active --cellularBars 4 \
+            --batteryState charged --batteryLevel 100
+          xcrun simctl install "$UDID" build/dd/Build/Products/Debug-iphonesimulator/TapStamp.app
+
+          mkdir -p shots
+          i=1
+          for scene in record review interval labelEdit onboarding; do
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            SIMCTL_CHILD_TZ="$TZNAME" xcrun simctl launch "$UDID" "$BUNDLE_ID" \
+              -demoScene "$scene" -AppleLanguages "(ja)" -AppleLocale ja_JP
+            sleep 7
+            xcrun simctl io "$UDID" screenshot "shots/0${i}-${scene}.png"
+            i=$((i + 1))
+          done
+          for f in shots/*.png; do
+            echo "$f $(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/{printf "%s ", $2}')"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots
+          path: shots/*.png
+
+      - name: Publish to screenshots branch
+        run: |
+          cd shots
+          git init -q
+          git checkout -q -b screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Screenshots from ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots

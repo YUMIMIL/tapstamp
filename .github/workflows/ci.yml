@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    # screenshots ブランチは撮影結果の置き場なのでビルドしない
+    branches-ignore: [screenshots]
   pull_request:
   workflow_dispatch:
 

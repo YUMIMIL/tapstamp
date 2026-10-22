@@ -43,6 +43,11 @@ struct ReviewView: View {
             .sheet(isPresented: $isLabelEditorPresented) {
                 LabelListView()
             }
+            .onAppear {
+                if let name = DemoMode.scene?.reviewLabelName {
+                    selectedLabelID = labels.first { $0.name == name }?.id
+                }
+            }
         }
     }
 }

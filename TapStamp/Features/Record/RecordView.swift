@@ -59,6 +59,9 @@ struct RecordView: View {
             .task(id: toast?.id) {
                 await dismissToastAfterDelay()
             }
+            .task {
+                await showDemoSceneIfNeeded()
+            }
         }
     }
 
@@ -90,6 +93,23 @@ struct RecordView: View {
             withAnimation(.snappy) {
                 toast = RecordToast(record: nil, text: "取り消せませんでした", canUndo: false, duration: 3)
             }
+        }
+    }
+
+    /// スクリーンショット用：指定ラベルのページを開き、直前の記録のトーストを出す。
+    private func showDemoSceneIfNeeded() async {
+        guard let name = DemoMode.scene?.recordLabelName,
+              let label = labels.first(where: { $0.name == name }) else { return }
+        // カルーセルのレイアウトが終わってからスクロールさせる
+        try? await Task.sleep(for: .milliseconds(400))
+        currentPageID = label.id.uuidString
+        if let latest = try? RecordStore(context: context).latestRecord(for: label) {
+            toast = RecordToast(
+                record: latest,
+                text: "\(label.name)を記録しました \(RelativeTimeFormatter.clock(latest.timestamp))",
+                canUndo: true,
+                duration: 3600
+            )
         }
     }
 

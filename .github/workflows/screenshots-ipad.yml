@@ -1,0 +1,130 @@
+# App Store 用スクリーンショット（iPad 13インチ）の撮影（手動実行）。
+# iPad Pro 13インチのシミュレータでデモデータ入りの画面を撮り、
+# 結果を `screenshots-ipad` ブランチと Actions の成果物に保存する。
+name: Screenshots iPad
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    name: Capture iPad screenshots
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      BUNDLE_ID: com.loreclinic.tapstamp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then
+            echo "::error::Xcode 26 is not installed on this runner"; ls -d /Applications/Xcode*.app; exit 1
+          fi
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+
+      - name: Install XcodeGen
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick a 13-inch iPad simulator
+        id: sim
+        run: |
+          xcrun simctl list devices available -j > devices.json
+          read -r UDID NAME <<< "$(python3 - <<'EOF'
+          import json
+          data = json.load(open("devices.json"))["devices"]
+          runtimes = sorted((k for k in data if ".iOS-" in k), key=lambda k: [int(x) for x in k.split("iOS-")[1].split("-")])
+          for runtime in reversed(runtimes):
+              pads = [d for d in data[runtime] if "iPad" in d["name"] and "13-inch" in d["name"]]
+              if not pads:
+                  pads = [d for d in data[runtime] if "iPad Pro" in d["name"]]
+              if pads:
+                  d = sorted(pads, key=lambda d: d["name"])[-1]
+                  print(d["udid"], d["name"].replace(" ", "_"))
+                  break
+          EOF
+          )"
+          if [ -z "$UDID" ]; then echo "::error::No 13-inch iPad simulator found"; xcrun simctl list devices available; exit 1; fi
+          echo "Using $NAME ($UDID)"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project TapStamp.xcodeproj \
+            -scheme TapStamp \
+            -configuration Debug \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build.log | grep -E "error:|\*\* BUILD" || true
+          grep -q "\*\* BUILD SUCCEEDED \*\*" build.log
+
+      - name: Capture
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          set -e
+          H=$((10#$(date -u +%H)))
+          OFF=$((14 - H))
+          if [ "$OFF" -ge 0 ]; then TZNAME="Etc/GMT-$OFF"; else TZNAME="Etc/GMT+$((-OFF))"; fi
+          echo "Time zone $TZNAME, local time $(TZ="$TZNAME" date +%H:%M)"
+
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl spawn "$UDID" defaults write -g AppleLanguages -array ja
+          xcrun simctl spawn "$UDID" defaults write -g AppleLocale -string ja_JP
+          xcrun simctl spawn "$UDID" defaults write -g AppleICUForce24HourTime -bool true
+          xcrun simctl shutdown "$UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance light
+          xcrun simctl install "$UDID" build/dd/Build/Products/Debug-iphonesimulator/TapStamp.app
+
+          mkdir -p shots
+          i=1
+          for scene in record review interval labelEdit onboarding; do
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            xcrun simctl status_bar "$UDID" override \
+              --time "$(TZ="$TZNAME" date +%H:%M)" \
+              --dataNetwork wifi --wifiMode active --wifiBars 3 \
+              --cellularMode active --cellularBars 4 \
+              --batteryState charged --batteryLevel 100
+            SIMCTL_CHILD_TZ="$TZNAME" xcrun simctl launch "$UDID" "$BUNDLE_ID" \
+              -demoScene "$scene" -AppleLanguages "(ja)" -AppleLocale ja_JP
+            sleep 7
+            xcrun simctl io "$UDID" screenshot "shots/0${i}-${scene}.png"
+            i=$((i + 1))
+          done
+          for f in shots/*.png; do
+            echo "$f $(sips -g pixelWidth -g pixelHeight "$f" | awk '/pixel/{printf "%s ", $2}')"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-screenshots-ipad
+          path: shots/*.png
+
+      - name: Publish to screenshots-ipad branch
+        run: |
+          cd shots
+          git init -q
+          git checkout -q -b screenshots-ipad
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "iPad screenshots from ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots-ipad

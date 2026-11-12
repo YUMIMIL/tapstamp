@@ -98,10 +98,10 @@ jobs:
           for scene in record review interval labelEdit onboarding; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
             xcrun simctl status_bar "$UDID" override \
-              --time "$(TZ="$TZNAME" date +%H:%M)" \
+              --time "$(TZ="$TZNAME" date +%Y-%m-%dT%H:%M:00)" \
               --dataNetwork wifi --wifiMode active --wifiBars 3 \
               --cellularMode active --cellularBars 4 \
-              --batteryState charged --batteryLevel 100
+              --batteryState charged --batteryLevel 100 || echo "status_bar override failed (ignored)"
             SIMCTL_CHILD_TZ="$TZNAME" xcrun simctl launch "$UDID" "$BUNDLE_ID" \
               -demoScene "$scene" -AppleLanguages "(ja)" -AppleLocale ja_JP
             sleep 7

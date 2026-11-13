@@ -97,8 +97,10 @@ jobs:
           i=1
           for scene in record review interval labelEdit onboarding; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+            # iPad のステータスバーは日付も出すので、タイムゾーン付きの完全な ISO 8601 文字列が必要。
+            # シミュレータは UTC（ランナーの時刻帯）で表示するため、アプリ側の現地時刻を UTC として渡す。
             xcrun simctl status_bar "$UDID" override \
-              --time "$(TZ="$TZNAME" date +%Y-%m-%dT%H:%M:00)" \
+              --time "$(TZ="$TZNAME" date +%Y-%m-%dT%H:%M:00)Z" \
               --dataNetwork wifi --wifiMode active --wifiBars 3 \
               --cellularMode active --cellularBars 4 \
               --batteryState charged --batteryLevel 100 || echo "status_bar override failed (ignored)"

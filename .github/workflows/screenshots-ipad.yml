@@ -93,14 +93,31 @@ jobs:
           xcrun simctl ui "$UDID" appearance light
           xcrun simctl install "$UDID" build/dd/Build/Products/Debug-iphonesimulator/TapStamp.app
 
+          # iPad のステータスバーは日付も出すため、--time に渡せる形式が iPhone と違い、
+          # iOS 26 ランタイムでは多くの形式が "Invalid, non-ISO date/time string" で拒否される。
+          # 受け付けられる形式を順に試し、最初に通ったものを使う（全滅なら時計は上書きしない）。
+          # シミュレータは UTC（ランナーの時刻帯）で表示するので、アプリ側の現地時刻を UTC として渡す。
+          TIME_FMT=""
+          for fmt in '%Y-%m-%dT%H:%M:00.000+00:00' '%Y-%m-%dT%H:%M:00+00:00' \
+                     '%Y-%m-%dT%H:%M:00.000Z' '%Y-%m-%dT%H:%M:00Z' '%Y-%m-%dT%H:%M:00' '%H:%M'; do
+            candidate="$(TZ="$TZNAME" date +"$fmt")"
+            if xcrun simctl status_bar "$UDID" override --time "$candidate" 2>/dev/null; then
+              echo "status_bar --time accepts '$fmt' ($candidate)"
+              TIME_FMT="$fmt"
+              break
+            else
+              echo "status_bar --time rejected '$fmt' ($candidate)"
+            fi
+          done
+          [ -n "$TIME_FMT" ] || echo "::warning::No --time format accepted; the status bar clock is left as is"
+
           mkdir -p shots
           i=1
           for scene in record review interval labelEdit onboarding; do
             xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-            # iPad のステータスバーは日付も出すので、タイムゾーン付きの完全な ISO 8601 文字列が必要。
-            # シミュレータは UTC（ランナーの時刻帯）で表示するため、アプリ側の現地時刻を UTC として渡す。
-            xcrun simctl status_bar "$UDID" override \
-              --time "$(TZ="$TZNAME" date +%Y-%m-%dT%H:%M:00)Z" \
+            TIME_ARGS=()
+            [ -n "$TIME_FMT" ] && TIME_ARGS=(--time "$(TZ="$TZNAME" date +"$TIME_FMT")")
+            xcrun simctl status_bar "$UDID" override "${TIME_ARGS[@]}" \
               --dataNetwork wifi --wifiMode active --wifiBars 3 \
               --cellularMode active --cellularBars 4 \
               --batteryState charged --batteryLevel 100 || echo "status_bar override failed (ignored)"
